@@ -36,13 +36,46 @@
         .footer-note{font-size:12px;color:var(--muted);margin-top:8px}
         .btn{display:inline-flex;align-items:center;gap:8px;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:#10131b;color:var(--text);cursor:pointer;user-select:none}
         .btn:active{transform:translateY(1px)}
+        /* disabled state */
+        .btn[disabled], select[disabled]{opacity:.5;cursor:not-allowed;filter:grayscale(.2)}
         .right{display:flex;gap:10px;justify-content:flex-end}
+
+        /* === Monthly salaries UI === */
+        .months-header{display:flex;align-items:center;gap:10px;justify-content:space-between;flex-wrap:wrap}
+        .switch{display:inline-flex;align-items:center;gap:8px;font-size:13px;color:var(--text);cursor:pointer}
+        .switch input{appearance:none;width:40px;height:22px;border-radius:999px;background:#0e1118;border:1px solid var(--line);position:relative;outline:none}
+        .switch input:after{content:"";position:absolute;top:2px;left:2px;width:18px;height:18px;background:#2a2f3d;border-radius:50%;transition:transform .2s}
+        .switch input:checked{border-color:var(--accent)}
+        .switch input:checked:after{transform:translateX(18px);background:var(--accent)}
+        .months-list{display:flex;flex-direction:column;gap:8px;margin-top:10px}
+        .salary-item{display:grid;grid-template-columns:1fr auto auto;gap:8px;align-items:center}
+        .salary-item .idx{font-size:12px;color:var(--muted)}
+        .icon-btn{background:#0e1118;border:1px solid var(--line);border-radius:10px;padding:10px;cursor:pointer}
+        .icon-btn:active{transform:translateY(1px)}
+        .delete-btn{border-color:#3a1e22;background:#151014;color:#ff8b8b}
+        .delete-btn:hover{border-color:#ff6b6b;color:#ffd1d1}
+        .months-toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+        .sum-chip{margin-top:4px}
+        .hide{display:none}
+
+/* Chrome, Safari, Edge */
+input[type=number]::-webkit-inner-spin-button,
+input[type=number]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+/* Firefox */
+input[type=number] {
+  -moz-appearance: textfield;
+}
+
     </style>
 </head>
 <body>
 <h1>Калькулятор податків ФОП</h1>
 <div class="app">
-    <!-- LEFT: Inputs -->
+    <!-- LEFT -->
     <div class="card">
         <div class="row">
             <div>
@@ -78,6 +111,33 @@
             </div>
         </div>
 
+        <!-- Monthly (optional) -->
+        <div class="hr"></div>
+        <div class="section-title">Помісячний ввід (опціонально)</div>
+        <div class="months-header">
+            <label class="switch">
+                <input type="checkbox" id="useMonthly">
+                Увімкнути помісячний ввід доходу
+            </label>
+            <div class="months-toolbar">
+                <div>
+                    <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:6px">Валюта помісячних
+                        сум</label>
+                    <select id="monthlyCurrency">
+                        <option value="UAH" selected>UAH</option>
+                        <option value="USD">USD</option>
+                    </select>
+                </div>
+                <button class="btn" id="addMonthBtn">+ Додати місяць</button>
+                <button class="btn" id="clearMonthsBtn">Очистити</button>
+            </div>
+        </div>
+        <div id="monthsHint" class="hint">У цьому режимі поле “Дохід за період” та “Валюта вводу доходу” ігноруються —
+            сума береться як Σ введених місяців у вибраній валюті і конвертується в UAH за курсом НБУ.
+        </div>
+        <div id="monthsList" class="months-list"></div>
+        <div class="chips sum-chip" id="monthsSumWrap" style="margin-top:6px;"></div>
+
         <div class="hr"></div>
         <div class="section-title">Єдиний податок (ЄП)</div>
         <div class="row">
@@ -105,6 +165,7 @@
             <div>
                 <label>К-ть місяців у періоді</label>
                 <input id="monthsCount" type="number" min="1" max="12" step="1" value="1"/>
+                <div class="hint" id="monthsAutoNote"></div>
             </div>
         </div>
 
@@ -148,7 +209,7 @@
         </div>
     </div>
 
-    <!-- RIGHT: Output -->
+    <!-- RIGHT -->
     <div class="card">
         <div class="section-title">Курс НБУ (USD/UAH)</div>
         <div class="chips" id="rateChips">
@@ -204,13 +265,13 @@
 </div>
 
 <script>
-    // === Utils ===============================================================
+    // === Utils ===
     const $ = (id) => document.getElementById(id);
-    const fmtUAH = (v) => Number(v).toLocaleString('uk-UA',{style:'currency',currency:'UAH',maximumFractionDigits:2});
-    const fmtUSD = (v) => Number(v).toLocaleString('en-US',{style:'currency',currency:'USD',maximumFractionDigits:2});
+    const fmtUAH = (v) => Number(v||0).toLocaleString('uk-UA',{style:'currency',currency:'UAH',maximumFractionDigits:2});
+    const fmtUSD = (v) => Number(v||0).toLocaleString('en-US',{style:'currency',currency:'USD',maximumFractionDigits:2});
     const clamp = (n,min,max)=>Math.max(min,Math.min(max,n));
 
-    // === Elements ============================================================
+    // === Elements ===
     const groupEl = $('group');
     const periodEl = $('period');
     const incomeUAHEl = $('incomeUAH');
@@ -242,7 +303,17 @@
     const recalcBtn = $('recalcBtn');
     const resetBtn = $('resetBtn');
 
-    // === NBU FX Rate =========================================================
+    // Monthly UI
+    const useMonthlyEl      = $('useMonthly');
+    const addMonthBtn       = $('addMonthBtn');
+    const clearMonthsBtn    = $('clearMonthsBtn');
+    const monthsListEl      = $('monthsList');
+    const monthsSumWrapEl   = $('monthsSumWrap');
+    const monthsHintEl      = $('monthsHint');
+    const monthsAutoNoteEl  = $('monthsAutoNote');
+    const monthlyCurrencyEl = $('monthlyCurrency');
+
+    // === NBU FX Rate ===
     async function fetchNbuUsd(dateStr){
       const base='https://bank.gov.ua/NBUStatService/v1/statdirectory/exchange?valcode=USD&json';
       const url = dateStr ? `${base}&date=${dateStr}` : base;
@@ -280,7 +351,7 @@
       recalc();
     }
 
-    // === Group presets (подсказки) ===========================================
+    // === Group presets ===
     let userEditedMonths=false;
     monthsCountEl.addEventListener('input',()=>{ userEditedMonths=true; });
     periodEl.addEventListener('change',()=>{ userEditedMonths=false; });
@@ -306,8 +377,95 @@
       }
     }
 
-    // === Calculation ==========================================================
+    // === Monthly salaries state ===
+    let salaries = []; // [{id, amount}]
+    let idSeq = 1;
+
+    function addSalary(amount=''){
+      salaries.push({ id: idSeq++, amount: amount!=='' ? Number(amount) : '' });
+      renderMonths();
+      recalc();
+    }
+    function removeSalary(id){
+      salaries = salaries.filter(x=>x.id!==id);
+      renderMonths();
+      recalc();
+    }
+    function setSalary(id, amount){
+      const row = salaries.find(x=>x.id===id);
+      if(row){ row.amount = amount===''? '' : Number(amount); }
+      renderSumChip();
+      recalc();
+    }
+    function monthlyRawSum(){
+      return salaries.reduce((s,x)=> s + (Number(x.amount)||0), 0);
+    }
+    function monthlySumUAH(){
+      const raw = monthlyRawSum();
+      if(monthlyCurrencyEl.value==='UAH') return raw;
+      if(fx.today?.rate){ return raw * fx.today.rate; }
+      return 0;
+    }
+
+    function renderMonths(){
+      monthsListEl.innerHTML = salaries.map((x, idx)=>`
+        <div class="salary-item" data-id="${x.id}">
+          <div class="idx">Місяць ${idx+1}</div>
+          <input type="number" step="0.01" min="0" placeholder="Сума за місяць" value="${x.amount!==''?x.amount:''}">
+          <button class="icon-btn delete-btn" title="Видалити місяць" aria-label="Видалити місяць">✖</button>
+        </div>
+      `).join('');
+
+      [...monthsListEl.querySelectorAll('.salary-item')].forEach(el=>{
+        const id = Number(el.getAttribute('data-id'));
+        const input = el.querySelector('input');
+        const delBtn = el.querySelector('button');
+        input.addEventListener('input', e=> setSalary(id, e.target.value));
+        delBtn.addEventListener('click', ()=> removeSalary(id));
+      });
+
+      renderSumChip();
+      toggleMonthlyUI();
+      if(useMonthlyEl.checked && !userEditedMonths){
+        monthsCountEl.value = Math.max(1, salaries.length||1);
+        monthsAutoNoteEl.textContent = `Авто: дорівнює кількості введених місяців (${monthsCountEl.value}).`;
+      } else {
+        monthsAutoNoteEl.textContent = '';
+      }
+    }
+
+    function renderSumChip(){
+      if(!useMonthlyEl.checked){ monthsSumWrapEl.innerHTML=''; return; }
+      const raw = monthlyRawSum();
+      const rawStr = monthlyCurrencyEl.value==='USD' ? fmtUSD(raw) : fmtUAH(raw);
+      const sumUAH = monthlySumUAH();
+      const hasRate = Boolean(fx.today?.rate);
+      const extra = monthlyCurrencyEl.value==='USD'
+        ? (hasRate ? `<span class="chip muted">≈ ${fmtUAH(sumUAH)} (за курсом НБУ)</span>`
+                   : `<span class="chip" style="color:#ffb020">Курс НБУ не завантажено — конвертація в UAH недоступна</span>`)
+        : '';
+      monthsSumWrapEl.innerHTML = `
+        <span class="chip"><strong>Σ помісячно:</strong> ${rawStr}</span>
+        ${extra}
+        <span class="chip muted">К-ть записів: ${salaries.length||0}</span>
+      `;
+    }
+
+    function toggleMonthlyUI(){
+      const active = useMonthlyEl.checked;
+      // show/hide blocks
+      monthsListEl.classList.toggle('hide', !active);
+      monthsHintEl.classList.toggle('hide', !active);
+      monthsSumWrapEl.classList.toggle('hide', !active);
+      // enable/disable controls
+      monthlyCurrencyEl.disabled = !active;
+      addMonthBtn.disabled = !active;
+      clearMonthsBtn.disabled = !active;
+    }
+
+    // === Calc ===
     function getIncomeUAH(){
+      if(useMonthlyEl.checked && salaries.length>0){ return monthlySumUAH(); }
       const income = Number(incomeUAHEl.value)||0;
       if(incomeCurrencyEl.value==='USD' && fx.today?.rate){ return income*fx.today.rate; }
       return income;
@@ -334,9 +492,10 @@
         epModeNoteEl.textContent = `ЄП = фіксована сума × ${months} міс.`;
       }
 
-      // Military tax (ВЗ)
+      // Military tax
       const militaryRate = Number(militaryTaxEl.value)||0;
-      const base         = Number(militaryBaseEl.value)||incomeUAH; // якщо порожньо — увесь дохід
+      const baseInput    = Number(militaryBaseEl.value);
+      const base         = Number.isFinite(baseInput) && baseInput>0 ? baseInput : incomeUAH;
       const militaryUAH  = base * militaryRate / 100;
       vzNoteEl.textContent = militaryRate>0 ? `ВЗ = ${militaryRate}% від ${fmtUAH(base)}` : '—';
 
@@ -378,9 +537,10 @@
         totalUSDEl.textContent='—';
         usdNoteEl.textContent = `Немає курсу — перевір підключення.`;
       }
+      renderSumChip();
     }
 
-    // === Events ==============================================================
+    // === Events ===
     [
       groupEl, periodEl, incomeUAHEl, incomeCurrencyEl, epModeEl, epValueEl,
       esvPerMonthEl, monthsCountEl, otherPercentEl, otherFixedEl, feesUAHEl,
@@ -402,10 +562,38 @@
       feesUAHEl.value=0;
       militaryTaxEl.value=1;
       militaryBaseEl.value='';
+
+      // monthly reset
+      useMonthlyEl.checked=false;
+      monthlyCurrencyEl.value='UAH';
+      salaries = [];
+      idSeq = 1;
+      renderMonths();
+
+      userEditedMonths=false;
       recalc();
     });
 
-    // === Boot ================================================================
+    // Monthly controls
+    useMonthlyEl.addEventListener('change', ()=>{
+      toggleMonthlyUI();
+      if(useMonthlyEl.checked && salaries.length===0) addSalary('');
+      recalc();
+    });
+    addMonthBtn.addEventListener('click', ()=> addSalary(''));
+    clearMonthsBtn.addEventListener('click', ()=>{
+      salaries = [];
+      renderMonths();
+      recalc();
+    });
+    monthlyCurrencyEl.addEventListener('change', ()=>{
+      renderSumChip();
+      recalc();
+    });
+
+    // Boot
+    renderMonths();         // initial empty render
+    toggleMonthlyUI();      // ensure proper disabled state on load
     loadRates();
 </script>
 </body>
