@@ -1,0 +1,419 @@
+<!doctype html>
+<html lang="uk">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Калькулятор податків ФОП</title>
+  <style>
+    :root{
+      --bg:#0f1115; --panel:#171a21; --muted:#8a93a6; --text:#eef1f7;
+      --accent:#6ea8fe; --ok:#52d273; --warn:#ffb020; --bad:#ff6b6b; --line:#232635;
+      --chip:#1f2330;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0; font:16px/1.5 system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Arial;
+      color:var(--text); background:linear-gradient(180deg,#0c0f14, #0f1115 30%, #0f1115);
+      padding:24px;
+    }
+    h1{margin:0 0 12px;font-size:24px}
+    .app{max-width:1100px;margin:0 auto;display:grid;gap:16px;grid-template-columns:1.2fr 1fr}
+    @media (max-width: 980px){.app{grid-template-columns:1fr}}
+    .card{
+      background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:16px 16px 10px;
+      box-shadow:0 8px 24px rgba(0,0,0,.25);
+    }
+    .row{display:grid;gap:12px;grid-template-columns:1fr 1fr}
+    .row-3{display:grid;gap:12px;grid-template-columns:1fr 1fr 1fr}
+    .row-4{display:grid;gap:12px;grid-template-columns:1fr 1fr 1fr 1fr}
+    @media (max-width:760px){.row,.row-3,.row-4{grid-template-columns:1fr}}
+    label{display:block;font-size:12px;color:var(--muted);margin-bottom:6px}
+    input, select{
+      width:100%; padding:12px 12px; border-radius:10px; border:1px solid var(--line); background:#0e1118; color:var(--text);
+      outline:none;
+    }
+    input:focus, select:focus{border-color:var(--accent); box-shadow:0 0 0 3px rgba(110,168,254,.15)}
+    .chip{
+      display:inline-flex; align-items:center; gap:8px; padding:6px 10px; border-radius:999px; background:var(--chip); color:var(--text);
+      border:1px solid var(--line); font-size:13px;
+    }
+    .chips{display:flex;flex-wrap:wrap;gap:8px}
+    .rate-up{color:var(--ok)} .rate-down{color:var(--bad)} .muted{color:var(--muted)}
+    .total{
+      display:grid; gap:12px; grid-template-columns:1fr 1fr;
+      align-items:stretch;
+    }
+    @media (max-width:760px){.total{grid-template-columns:1fr}}
+    .kpi{
+      background:#0e1118; border:1px solid var(--line); border-radius:14px; padding:14px;
+      display:flex; flex-direction:column; gap:6px; justify-content:center;
+    }
+    .kpi .v{font-size:28px; font-weight:700}
+    .kpi small{color:var(--muted)}
+    .hr{height:1px;background:var(--line);margin:12px 0}
+    .hint{font-size:12px;color:var(--muted)}
+    .grid{display:grid; gap:12px}
+    .section-title{font-weight:700;margin-bottom:2px}
+    .footer-note{font-size:12px;color:var(--muted);margin-top:8px}
+    .btn{
+      display:inline-flex;align-items:center;gap:8px;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:#10131b;
+      color:var(--text);cursor:pointer;user-select:none;
+    }
+    .btn:active{transform:translateY(1px)}
+    .right{display:flex;gap:10px;justify-content:flex-end}
+  </style>
+</head>
+<body>
+  <h1>Калькулятор податків ФОП</h1>
+  <div class="app">
+    <!-- LEFT: Inputs -->
+    <div class="card">
+      <div class="row">
+        <div>
+          <label>Група ФОП</label>
+          <select id="group">
+            <option value="1">1 група</option>
+            <option value="2">2 група</option>
+            <option value="3" selected>3 група</option>
+            <option value="general">Загальна система</option>
+          </select>
+        </div>
+        <div>
+          <label>Період розрахунку</label>
+          <select id="period">
+            <option value="month" selected>Місяць</option>
+            <option value="quarter">Квартал</option>
+            <option value="year">Рік</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="row">
+        <div>
+          <label>Дохід за період (UAH)</label>
+          <input id="incomeUAH" type="number" min="0" step="0.01" value="100000" />
+        </div>
+        <div>
+          <label>Валюта вводу доходу</label>
+          <select id="incomeCurrency">
+            <option value="UAH" selected>UAH</option>
+            <option value="USD">USD</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="hr"></div>
+      <div class="section-title">Єдиний податок (ЄП)</div>
+      <div class="row">
+        <div>
+          <label>Режим ЄП</label>
+          <select id="epMode">
+            <option value="percent" selected>Відсоток від доходу</option>
+            <option value="fixed">Фіксована сума</option>
+          </select>
+        </div>
+        <div>
+          <label>Ставка ЄП (%) або сума (UAH)</label>
+          <input id="epValue" type="number" min="0" step="0.01" value="5" />
+        </div>
+      </div>
+
+      <div class="hr"></div>
+      <div class="section-title">Єдиний соціальний внесок (ЄСВ)</div>
+      <div class="row">
+        <div>
+          <label>ЄСВ за 1 місяць (UAH)</label>
+          <input id="esvPerMonth" type="number" min="0" step="0.01" value="1870.38" />
+          <div class="hint">Поле редаговане: за потреби постав мінімальний/потрібний рівень.</div>
+        </div>
+        <div>
+          <label>К-ть місяців у періоді</label>
+          <input id="monthsCount" type="number" min="1" max="12" step="1" value="1" />
+        </div>
+      </div>
+
+      <div class="hr"></div>
+      <div class="section-title">Інші нарахування</div>
+      <div class="row-3">
+        <div>
+          <label>Інший податок (%)</label>
+          <input id="otherPercent" type="number" min="0" step="0.01" value="0" />
+          <div class="hint">Напр., військовий збір, ПДФО тощо — якщо застосовні.</div>
+        </div>
+        <div>
+          <label>Фіксована доплата (UAH)</label>
+          <input id="otherFixed" type="number" min="0" step="0.01" value="0" />
+        </div>
+        <div>
+          <label>Комісії/банківські витрати (UAH)</label>
+          <input id="feesUAH" type="number" min="0" step="0.01" value="0" />
+        </div>
+      </div>
+
+      <div class="hr"></div>
+      <div class="right">
+        <button class="btn" id="resetBtn">Скинути поля</button>
+        <button class="btn" id="recalcBtn">Перерахувати</button>
+      </div>
+    </div>
+
+    <!-- RIGHT: Output -->
+    <div class="card">
+      <div class="section-title">Курс НБУ (USD/UAH)</div>
+      <div class="chips" id="rateChips">
+        <span class="chip">Завантаження курсу…</span>
+      </div>
+
+      <div class="hr"></div>
+      <div class="total">
+        <div class="kpi">
+          <small>Загальні податки (USD)</small>
+          <div class="v" id="totalUSD">—</div>
+          <small class="muted" id="usdNote"></small>
+        </div>
+        <div class="kpi">
+          <small>Загальні податки (UAH)</small>
+          <div class="v" id="totalUAH">—</div>
+          <small class="muted" id="uahNote"></small>
+        </div>
+      </div>
+
+      <div class="hr"></div>
+      <div class="grid">
+        <div class="section-title">Деталі розрахунку</div>
+        <div class="row-3">
+          <div class="kpi">
+            <small>ЄП</small>
+            <div class="v" id="epUAH">—</div>
+            <small class="muted" id="epModeNote"></small>
+          </div>
+          <div class="kpi">
+            <small>ЄСВ</small>
+            <div class="v" id="esvUAH">—</div>
+            <small class="muted" id="esvNote"></small>
+          </div>
+          <div class="kpi">
+            <small>Інше</small>
+            <div class="v" id="otherUAH">—</div>
+            <small class="muted" id="otherNote"></small>
+          </div>
+        </div>
+      </div>
+
+      <div class="footer-note">
+        ⚠️ Ставки і правила часто змінюються. Калькулятор свідомо дає можливість редагувати всі поля та підлаштовувати під твій кейс (місто, рішення місцевої ради, режим 3%+ПДВ/5%, особливі умови тощо).
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // === Utils ===============================================================
+    const $ = (id) => document.getElementById(id);
+    const fmtUAH = (v) => Number(v).toLocaleString('uk-UA', {style:'currency', currency:'UAH', maximumFractionDigits:2});
+    const fmtUSD = (v) => Number(v).toLocaleString('en-US', {style:'currency', currency:'USD', maximumFractionDigits:2});
+    const clamp = (n, min, max) => Math.max(min, Math.min(max, n));
+
+    // === Elements ============================================================
+    const groupEl = $('group');
+    const periodEl = $('period');
+    const incomeUAHEl = $('incomeUAH');
+    const incomeCurrencyEl = $('incomeCurrency');
+    const epModeEl = $('epMode');
+    const epValueEl = $('epValue');
+    const esvPerMonthEl = $('esvPerMonth');
+    const monthsCountEl = $('monthsCount');
+    const otherPercentEl = $('otherPercent');
+    const otherFixedEl = $('otherFixed');
+    const feesUAHEl = $('feesUAH');
+
+    const totalUSDEl = $('totalUSD');
+    const totalUAHEl = $('totalUAH');
+    const usdNoteEl = $('usdNote');
+    const uahNoteEl = $('uahNote');
+    const epUAHEl = $('epUAH');
+    const esvUAHEl = $('esvUAH');
+    const otherUAHEl = $('otherUAH');
+    const epModeNoteEl = $('epModeNote');
+    const esvNoteEl = $('esvNote');
+    const otherNoteEl = $('otherNote');
+    const rateChipsEl = $('rateChips');
+
+    const recalcBtn = $('recalcBtn');
+    const resetBtn = $('resetBtn');
+
+    // === NBU FX Rate =========================================================
+    // API: https://bank.gov.ua/NBUStatService/v1/statdirectory/exchange?valcode=USD&json
+    async function fetchNbuUsd(dateStr /* YYYYMMDD or undefined */){
+      const base = 'https://bank.gov.ua/NBUStatService/v1/statdirectory/exchange?valcode=USD&json';
+      const url = dateStr ? `${base}&date=${dateStr}` : base;
+      const r = await fetch(url);
+      if(!r.ok) throw new Error('NBU rate fetch failed');
+      const data = await r.json();
+      if(!Array.isArray(data) || !data.length) throw new Error('NBU rate empty');
+      return { rate: data[0].rate, exchangedate: data[0].exchangedate };
+    }
+
+    function yyyymmdd(d){
+      const y = d.getFullYear();
+      const m = String(d.getMonth()+1).padStart(2,'0');
+      const day = String(d.getDate()).padStart(2,'0');
+      return `${y}${m}${day}`;
+    }
+
+    let fx = { today: null, prev: null };
+
+    async function loadRates(){
+      rateChipsEl.innerHTML = `<span class="chip">Завантаження курсу…</span>`;
+      try{
+        const now = new Date();
+        const yesterday = new Date(now); yesterday.setDate(now.getDate()-1);
+
+        const [today, prev] = await Promise.all([
+          fetchNbuUsd(), // поточний
+          fetchNbuUsd(yyyymmdd(yesterday)) // учора
+        ]);
+        fx.today = today;
+        fx.prev = prev;
+
+        const delta = today.rate - prev.rate;
+        const dirClass = delta > 0 ? 'rate-up' : (delta < 0 ? 'rate-down' : '');
+        const arrow = delta > 0 ? '↑' : (delta < 0 ? '↓' : '→');
+        const deltaAbs = Math.abs(delta).toFixed(3);
+
+        rateChipsEl.innerHTML = `
+          <span class="chip"><strong>Сьогодні:</strong> ${today.rate.toFixed(3)} UAH</span>
+          <span class="chip">Дата: ${today.exchangedate}</span>
+          <span class="chip ${dirClass}">${arrow} зміна: ${deltaAbs}</span>
+          <span class="chip muted">Вчора: ${prev.rate.toFixed(3)} UAH (${prev.exchangedate})</span>
+        `;
+      }catch(e){
+        rateChipsEl.innerHTML = `<span class="chip" style="color:#ffb020">Не вдалося отримати курс НБУ. Перевір підключення.</span>`;
+      }
+      recalc(); // оновити розрахунок з курсом
+    }
+
+    // === Group presets (только подсказки, всё редактируемое) ================
+    function applyGroupHints(){
+      const g = groupEl.value;
+      const p = periodEl.value;
+
+      if(g==='3'){
+        epModeEl.value = 'percent';
+        if(Number(epValueEl.value) === 5 || Number(epValueEl.value) === 0) epValueEl.value = 5; // подсказка
+      } else if(g==='1' || g==='2'){
+        epModeEl.value = 'fixed';
+        // оставляем сумму редактируемой — она зависит от рішення місцевої ради
+        if(Number(epValueEl.value) === 5) epValueEl.value = 0;
+      } else if(g==='general'){
+        // На загальній системі типові «інші»: ПДФО/ВЗ тощо — даём поле %.
+        epModeEl.value = 'percent';
+        if(Number(epValueEl.value) === 5) epValueEl.value = 0;
+      }
+
+      // months per period (подсказка)
+      if(p==='month') monthsCountEl.value = 1;
+      if(p==='quarter') monthsCountEl.value = 3;
+      if(p==='year') monthsCountEl.value = 12;
+    }
+
+    // === Calculation =========================================================
+    function getIncomeUAH(){
+      const income = Number(incomeUAHEl.value) || 0;
+      if(incomeCurrencyEl.value === 'USD' && fx.today?.rate){
+        return income * fx.today.rate;
+      }
+      return income;
+    }
+
+    function calc(){
+      applyGroupHints();
+
+      const incomeUAH = getIncomeUAH();
+      const otherPercent = Number(otherPercentEl.value) || 0;
+      const otherFixed = Number(otherFixedEl.value) || 0;
+      const feesUAH = Number(feesUAHEl.value) || 0;
+      const months = clamp(Number(monthsCountEl.value)||1, 1, 12);
+
+      // EP:
+      let epUAH = 0;
+      if(epModeEl.value === 'percent'){
+        const ratePct = Number(epValueEl.value) || 0;
+        epUAH = incomeUAH * ratePct / 100;
+        epModeNoteEl.textContent = `ЄП = ${ratePct}% від доходу`;
+      } else {
+        const fixed = Number(epValueEl.value) || 0;
+        epUAH = fixed * months;
+        epModeNoteEl.textContent = `ЄП = фіксована сума × ${months} міс.`;
+      }
+
+      // ESV:
+      const esvPerMonth = Number(esvPerMonthEl.value) || 0;
+      const esvUAH = esvPerMonth * months;
+      esvNoteEl.textContent = `ЄСВ = ${fmtUAH(esvPerMonth)} × ${months} міс.`;
+
+      // Other:
+      const otherFromPercent = incomeUAH * otherPercent / 100;
+      const otherUAH = otherFromPercent + otherFixed + feesUAH;
+      const otherParts = [];
+      if(otherPercent > 0) otherParts.push(`${otherPercent}% від доходу`);
+      if(otherFixed > 0) otherParts.push(`фіксовано ${fmtUAH(otherFixed)}`);
+      if(feesUAH > 0) otherParts.push(`комісії ${fmtUAH(feesUAH)}`);
+      otherNoteEl.textContent = otherParts.length ? otherParts.join(' + ') : '—';
+
+      const totalUAH = epUAH + esvUAH + otherUAH;
+      const usdRate = fx.today?.rate || null;
+      const totalUSD = usdRate ? (totalUAH / usdRate) : null;
+
+      return {
+        incomeUAH,
+        epUAH, esvUAH, otherUAH,
+        totalUAH, totalUSD, usdRate,
+      };
+    }
+
+    function recalc(){
+      const r = calc();
+
+      epUAHEl.textContent = fmtUAH(r.epUAH);
+      esvUAHEl.textContent = fmtUAH(r.esvUAH);
+      otherUAHEl.textContent = fmtUAH(r.otherUAH);
+
+      totalUAHEl.textContent = fmtUAH(r.totalUAH);
+      uahNoteEl.textContent = `За курсом НБУ буде перераховано у USD для довідки.`;
+
+      if(r.totalUSD != null){
+        totalUSDEl.textContent = fmtUSD(r.totalUSD);
+        usdNoteEl.textContent = `Курс: ${r.usdRate?.toFixed(3)} UAH за 1 USD (НБУ)`;
+      } else {
+        totalUSDEl.textContent = '—';
+        usdNoteEl.textContent = `Немає курсу — перевір підключення.`;
+      }
+    }
+
+    // === Events ==============================================================
+    [
+      groupEl, periodEl, incomeUAHEl, incomeCurrencyEl, epModeEl, epValueEl,
+      esvPerMonthEl, monthsCountEl, otherPercentEl, otherFixedEl, feesUAHEl
+    ].forEach(el => el.addEventListener('input', recalc));
+
+    recalcBtn.addEventListener('click', recalc);
+    resetBtn.addEventListener('click', () => {
+      groupEl.value = '3';
+      periodEl.value = 'month';
+      incomeUAHEl.value = 100000;
+      incomeCurrencyEl.value = 'UAH';
+      epModeEl.value = 'percent';
+      epValueEl.value = 5;
+      esvPerMonthEl.value = 1870.38;
+      monthsCountEl.value = 1;
+      otherPercentEl.value = 0;
+      otherFixedEl.value = 0;
+      feesUAHEl.value = 0;
+      recalc();
+    });
+
+    // === Boot ================================================================
+    loadRates(); // подтягиваем курс и считаем
+  </script>
+</body>
+</html>
