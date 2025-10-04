@@ -36,11 +36,10 @@
         .footer-note{font-size:12px;color:var(--muted);margin-top:8px}
         .btn{display:inline-flex;align-items:center;gap:8px;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:#10131b;color:var(--text);cursor:pointer;user-select:none}
         .btn:active{transform:translateY(1px)}
-        /* disabled state */
         .btn[disabled], select[disabled]{opacity:.5;cursor:not-allowed;filter:grayscale(.2)}
         .right{display:flex;gap:10px;justify-content:flex-end}
 
-        /* === Monthly salaries UI === */
+        /* monthly UI */
         .months-header{display:flex;align-items:center;gap:10px;justify-content:space-between;flex-wrap:wrap}
         .switch{display:inline-flex;align-items:center;gap:8px;font-size:13px;color:var(--text);cursor:pointer}
         .switch input{appearance:none;width:40px;height:22px;border-radius:999px;background:#0e1118;border:1px solid var(--line);position:relative;outline:none}
@@ -56,20 +55,17 @@
         .delete-btn:hover{border-color:#ff6b6b;color:#ffd1d1}
         .months-toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
         .sum-chip{margin-top:4px}
+        .sum-chip .chip{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
         .hide{display:none}
 
-/* Chrome, Safari, Edge */
-input[type=number]::-webkit-inner-spin-button,
-input[type=number]::-webkit-outer-spin-button {
-  -webkit-appearance: none;
-  margin: 0;
-}
+        /* number spinners off */
+        input[type=number]::-webkit-inner-spin-button,
+        input[type=number]::-webkit-outer-spin-button{ -webkit-appearance:none;margin:0 }
+        input[type=number]{ -moz-appearance:textfield }
 
-/* Firefox */
-input[type=number] {
-  -moz-appearance: textfield;
-}
-
+        /* KPI long values */
+        .kpi .v{display:block;width:100%;font-size:clamp(18px,3vw,28px);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+        .kpi .v.shrink{font-size:clamp(16px,2.4vw,22px)}
     </style>
 </head>
 <body>
@@ -266,10 +262,73 @@ input[type=number] {
 
 <script>
     // === Utils ===
+    // Максимальні річні ліміти ФОП (2025)
+      const FOP_LIMITS = {
+        "1": 1182400,   // грн (1 група)
+        "2": 7818900/1.35, // ≈5,8 млн грн (2 група)
+        "3": 7818900,   // грн (3 група)
+        "general": Infinity // без ліміту для загальної системи
+      };
+
+      // отримати ліміт для поточної групи
+      function getFopLimit() {
+        return FOP_LIMITS[groupEl.value] || Infinity;
+      }
+
     const $ = (id) => document.getElementById(id);
     const fmtUAH = (v) => Number(v||0).toLocaleString('uk-UA',{style:'currency',currency:'UAH',maximumFractionDigits:2});
     const fmtUSD = (v) => Number(v||0).toLocaleString('en-US',{style:'currency',currency:'USD',maximumFractionDigits:2});
     const clamp = (n,min,max)=>Math.max(min,Math.min(max,n));
+
+    // Полные форматтеры
+    const fmtUAHFull = (v) => Number(v||0).toLocaleString('uk-UA',{style:'currency',currency:'UAH',maximumFractionDigits:2});
+    const fmtUSDFull = (v) => Number(v||0).toLocaleString('en-US',{style:'currency',currency:'USD',maximumFractionDigits:2});
+
+    // Надёжный компакт: сначала пробуем currency+compact, если получилось длинно — делаем decimal+ручной символ
+    function compactCurrency(locale, currency, value){
+      const num = Number(value)||0;
+      const full = new Intl.NumberFormat(locale,{style:'currency',currency,maximumFractionDigits:2}).format(num);
+      let tryCompact = new Intl.NumberFormat(locale,{style:'currency',currency,notation:'compact',maximumFractionDigits:2}).format(num);
+      // если compact "не сработал" (слишком длинно), делаем свою сборку
+      if(tryCompact.length > 18){
+        const dec = new Intl.NumberFormat(locale,{notation:'compact',maximumFractionDigits:2}).format(num);
+        if(currency==='UAH'){
+          tryCompact = `${dec} грн`; // в украинской локали валюта после числа
+        }else if(currency==='USD'){
+          const parts = new Intl.NumberFormat(locale,{style:'currency',currency, currencyDisplay:'narrowSymbol'}).formatToParts(1);
+          const sym = (parts.find(p=>p.type==='currency')||{}).value || '$';
+          tryCompact = `${sym}${dec}`;
+        }else{
+          tryCompact = `${dec} ${currency}`;
+        }
+      }
+      return {full, compact:tryCompact};
+    }
+
+    // Порог для принудительного compact
+    const FORCE_COMPACT_ABS = 1e4;
+    const FORCE_COMPACT_LEN = 14;
+
+    // KPI: показать деньги с автокомпактом
+    function setMoney(el, value, currency='UAH') {
+      const locale = currency==='USD' ? 'en-US' : 'uk-UA';
+      const {full, compact} = compactCurrency(locale, currency, value);
+      const mustCompact = Math.abs(Number(value)||0) >= FORCE_COMPACT_ABS || String(full).length > FORCE_COMPACT_LEN;
+      el.textContent = mustCompact ? compact : full;
+      el.title = full;
+      el.classList.toggle('shrink', mustCompact);
+      if(!mustCompact){
+        requestAnimationFrame(()=>{ if(el.scrollWidth>el.clientWidth){ el.textContent=compact; el.classList.add('shrink'); } });
+      }
+    }
+
+    // Чипы «Σ помісячно»
+    function chipMoney(value, currency='UAH'){
+      const locale = currency==='USD' ? 'en-US' : 'uk-UA';
+      const {full, compact} = compactCurrency(locale, currency, value);
+      const mustCompact = Math.abs(Number(value)||0) >= FORCE_COMPACT_ABS || String(full).length > FORCE_COMPACT_LEN;
+      return { text: mustCompact ? compact : full, title: full };
+    }
 
     // === Elements ===
     const groupEl = $('group');
@@ -393,10 +452,19 @@ input[type=number] {
     }
     function setSalary(id, amount){
       const row = salaries.find(x=>x.id===id);
-      if(row){ row.amount = amount===''? '' : Number(amount); }
+      if(row){
+        let val = amount===''? '' : Number(amount);
+        const max = getFopLimit();
+        if(val > max){
+          val = max; // обрезаем до максимума
+          alert(`⚠️ Перевищено ліміт для ФОП (${max.toLocaleString('uk-UA')} грн). Значення скориговане.`);
+        }
+        row.amount = val;
+      }
       renderSumChip();
       recalc();
-    }
+}
+
     function monthlyRawSum(){
       return salaries.reduce((s,x)=> s + (Number(x.amount)||0), 0);
     }
@@ -437,15 +505,21 @@ input[type=number] {
     function renderSumChip(){
       if(!useMonthlyEl.checked){ monthsSumWrapEl.innerHTML=''; return; }
       const raw = monthlyRawSum();
-      const rawStr = monthlyCurrencyEl.value==='USD' ? fmtUSD(raw) : fmtUAH(raw);
+      const rawFmt = chipMoney(raw, monthlyCurrencyEl.value);
       const sumUAH = monthlySumUAH();
       const hasRate = Boolean(fx.today?.rate);
+
       const extra = monthlyCurrencyEl.value==='USD'
-        ? (hasRate ? `<span class="chip muted">≈ ${fmtUAH(sumUAH)} (за курсом НБУ)</span>`
-                   : `<span class="chip" style="color:#ffb020">Курс НБУ не завантажено — конвертація в UAH недоступна</span>`)
+        ? (hasRate
+            ? (() => {
+                const uahFmt = chipMoney(sumUAH, 'UAH');
+                return `<span class="chip muted" title="${uahFmt.title}">≈ ${uahFmt.text} (за курсом НБУ)</span>`;
+              })()
+            : `<span class="chip" style="color:#ffb020">Курс НБУ не завантажено — конвертація в UAH недоступна</span>`)
         : '';
+
       monthsSumWrapEl.innerHTML = `
-        <span class="chip"><strong>Σ помісячно:</strong> ${rawStr}</span>
+        <span class="chip" title="${rawFmt.title}"><strong>Σ помісячно:</strong>&nbsp;${rawFmt.text}</span>
         ${extra}
         <span class="chip muted">К-ть записів: ${salaries.length||0}</span>
       `;
@@ -453,11 +527,9 @@ input[type=number] {
 
     function toggleMonthlyUI(){
       const active = useMonthlyEl.checked;
-      // show/hide blocks
       monthsListEl.classList.toggle('hide', !active);
       monthsHintEl.classList.toggle('hide', !active);
       monthsSumWrapEl.classList.toggle('hide', !active);
-      // enable/disable controls
       monthlyCurrencyEl.disabled = !active;
       addMonthBtn.disabled = !active;
       clearMonthsBtn.disabled = !active;
@@ -522,16 +594,16 @@ input[type=number] {
 
     function recalc(){
       const r = calc();
-      epUAHEl.textContent   = fmtUAH(r.epUAH);
-      esvUAHEl.textContent  = fmtUAH(r.esvUAH);
-      vzUAHEl.textContent   = fmtUAH(r.militaryUAH);
-      otherUAHEl.textContent= fmtUAH(r.otherUAH);
+      setMoney(epUAHEl,    r.epUAH,       'UAH');
+      setMoney(esvUAHEl,   r.esvUAH,      'UAH');
+      setMoney(vzUAHEl,    r.militaryUAH, 'UAH');
+      setMoney(otherUAHEl, r.otherUAH,    'UAH');
 
-      totalUAHEl.textContent= fmtUAH(r.totalUAH);
+      setMoney(totalUAHEl, r.totalUAH,    'UAH');
       uahNoteEl.textContent = `За курсом НБУ буде перераховано у USD для довідки.`;
 
       if(r.totalUSD!=null){
-        totalUSDEl.textContent = fmtUSD(r.totalUSD);
+        setMoney(totalUSDEl, r.totalUSD,  'USD');
         usdNoteEl.textContent  = `Курс: ${r.usdRate?.toFixed(3)} UAH за 1 USD (НБУ)`;
       }else{
         totalUSDEl.textContent='—';
@@ -563,7 +635,6 @@ input[type=number] {
       militaryTaxEl.value=1;
       militaryBaseEl.value='';
 
-      // monthly reset
       useMonthlyEl.checked=false;
       monthlyCurrencyEl.value='UAH';
       salaries = [];
@@ -574,7 +645,6 @@ input[type=number] {
       recalc();
     });
 
-    // Monthly controls
     useMonthlyEl.addEventListener('change', ()=>{
       toggleMonthlyUI();
       if(useMonthlyEl.checked && salaries.length===0) addSalary('');
@@ -591,9 +661,8 @@ input[type=number] {
       recalc();
     });
 
-    // Boot
-    renderMonths();         // initial empty render
-    toggleMonthlyUI();      // ensure proper disabled state on load
+    renderMonths();
+    toggleMonthlyUI();
     loadRates();
 </script>
 </body>
