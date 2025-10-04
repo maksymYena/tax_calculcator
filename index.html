@@ -28,7 +28,14 @@
         @media (max-width:760px){.total{grid-template-columns:1fr}}
         .kpi{background:#0e1118;border:1px solid var(--line);border-radius:14px;padding:14px;display:flex;flex-direction:column;gap:6px;justify-content:center}
         .kpi .v{font-size:28px;font-weight:700}
-        .kpi small{color:var(--muted)}
+        .kpi small{
+          color: var(--muted);
+          display: block;
+          max-width: 100%;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
         .hr{height:1px;background:var(--line);margin:12px 0}
         .hint{font-size:12px;color:var(--muted)}
         .grid{display:grid;gap:12px}
@@ -80,6 +87,73 @@
         .donate-note a:hover {
           text-decoration: underline;
         }
+
+        .total {
+          display: grid;
+          gap: 12px;
+          grid-template-columns: 250px 250px; /* фикс ширина */
+          justify-content: center;           /* выравниваем по центру */
+        }
+
+        .row-3 {
+          display: grid;
+          gap: 12px;
+          grid-template-columns: 1fr 1fr 1fr;
+        }
+
+        .kpi .v {
+          font-size: 24px;
+          font-weight: 700;
+          text-align: center;
+          min-width: 0; /* не растягивает ячейку */
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+
+        .kpi {
+            min-width: 200px;  /* минимальная ширина */
+            flex: 1;
+         }
+
+        .kpi .v {
+          font-variant-numeric: tabular-nums; /* одинаковая ширина цифр */
+        }
+
+        .form-inline{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+        .form-inline .control{
+          height:44px;                /* одинаковая высота */
+          display:inline-flex;
+          align-items:center;
+          padding:0 14px;             /* горизонтальные отступы */
+          border-radius:10px;
+          border:1px solid var(--line);
+          background:#10131b;
+          color:var(--text);
+        }
+        /* селект — тот же визуальный размер, но с нативной стрелкой */
+        .form-inline select.control{
+          padding-right:36px;         /* запас под стрелку */
+          background:#0e1118;
+        }
+        /* кнопки выглядят как раньше, но ровно по высоте */
+        .form-inline .btn.control{
+          background:#10131b;
+        }
+        /* у подписи к селекту убираем лишний нижний отступ, чтобы не «подпрыгивало» */
+        .form-inline .lbl{font-size:12px;color:var(--muted);margin:0}
+
+        /* чуть выровняем сам переключатель по вертикали с подписью */
+        .switch{gap:10px}
+        .switch input{vertical-align:middle}
+
+        /* на узких экранах элементы складываются в столбик без «ломаний» */
+        @media (max-width:760px){
+          .form-inline{gap:8px}
+          .form-inline .control{width:100%}
+        }
+
+
     </style>
 </head>
 <body>
@@ -266,6 +340,24 @@
                 </div>
             </div>
         </div>
+
+        <div class="hr"></div>
+        <div class="grid">
+            <div class="section-title">Баланс зарплати</div>
+            <div class="row">
+                <div class="kpi">
+                    <small>Податки від доходу</small>
+                    <div class="v" id="taxPercent">—</div>
+                    <small class="muted">Відсоток від суми</small>
+                </div>
+                <div class="kpi">
+                    <small>Залишок після податків</small>
+                    <div class="v" id="netSalary">—</div>
+                    <small class="muted">«чистими»</small>
+                </div>
+            </div>
+        </div>
+
 
         <div class="footer-note">
             ⚠️ Ставки і правила часто змінюються. Калькулятор свідомо дає можливість редагувати всі поля та
@@ -588,7 +680,15 @@
       const baseInput    = Number(militaryBaseEl.value);
       const base         = Number.isFinite(baseInput) && baseInput>0 ? baseInput : incomeUAH;
       const militaryUAH  = base * militaryRate / 100;
-      vzNoteEl.textContent = militaryRate>0 ? `ВЗ = ${militaryRate}% від ${fmtUAH(base)}` : '—';
+      if(militaryRate > 0){
+          const { text, title } = chipMoney(base, 'UAH'); // компактная сумма + тултип
+          vzNoteEl.textContent = `ВЗ = ${militaryRate}% від ${text}`;
+          vzNoteEl.title = title; // полный формат в подсказке
+        } else {
+          vzNoteEl.textContent = '—';
+          vzNoteEl.removeAttribute('title');
+        }
+
 
       // ESV
       const esvPerMonth = Number(esvPerMonthEl.value)||0;
@@ -620,6 +720,15 @@
 
       setMoney(totalUAHEl, r.totalUAH,    'UAH');
       uahNoteEl.textContent = `За курсом НБУ буде перераховано у USD для довідки.`;
+
+      // % податків від доходу
+       const percent = r.incomeUAH > 0 ? (r.totalUAH / r.incomeUAH * 100) : 0;
+    document.getElementById('taxPercent').textContent = percent.toFixed(1) + '%';
+
+    // «чистими» після податків
+    const net = Math.max(0, r.incomeUAH - r.totalUAH);
+    setMoney(document.getElementById('netSalary'), net, 'UAH');
+
 
       if(r.totalUSD!=null){
         setMoney(totalUSDEl, r.totalUSD,  'USD');
