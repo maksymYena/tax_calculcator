@@ -7,6 +7,7 @@
         "3": 7818900,   // грн (3 група)
         "general": Infinity // без ліміту для загальної системи
       };
+      const ESV_RATE = 0.22;
 
       // отримати ліміт для поточної групи
       function getFopLimit() {
@@ -75,7 +76,7 @@
     const incomeCurrencyEl = $('incomeCurrency');
     const epModeEl = $('epMode');
     const epValueEl = $('epValue');
-    const esvPerMonthEl = $('esvPerMonth');
+    const minWageUAHEl = $('minWageUAH');
     const monthsCountEl = $('monthsCount');
     const otherPercentEl = $('otherPercent');
     const otherFixedEl = $('otherFixed');
@@ -183,6 +184,13 @@
       renderMonths();
       recalc();
     }
+
+    function getEsvPerMonthFromMinWage(){
+  const mw = Number(minWageUAHEl?.value) || 0;
+  return mw * ESV_RATE;
+}
+
+
     function removeSalary(id){
       salaries = salaries.filter(x=>x.id!==id);
       renderMonths();
@@ -282,61 +290,62 @@
     }
 
     function calc(){
-      applyGroupHints();
+  applyGroupHints();
 
-      const incomeUAH = getIncomeUAH();
-      const otherPercent = Number(otherPercentEl.value)||0;
-      const otherFixed   = Number(otherFixedEl.value)||0;
-      const feesUAH      = Number(feesUAHEl.value)||0;
-      const months       = clamp(Number(monthsCountEl.value)||1, 1, 12);
+  const incomeUAH   = getIncomeUAH();
+  const otherPercent= Number(otherPercentEl.value)||0;
+  const otherFixed  = Number(otherFixedEl.value)||0;
+  const feesUAH     = Number(feesUAHEl.value)||0;
+  const months      = clamp(Number(monthsCountEl.value)||1, 1, 12);
 
-      // EP
-      let epUAH=0;
-      if(epModeEl.value==='percent'){
-        const ratePct = Number(epValueEl.value)||0;
-        epUAH = incomeUAH * ratePct / 100;
-        epModeNoteEl.textContent = `ЄП = ${ratePct}% від доходу`;
-      }else{
-        const fixed = Number(epValueEl.value)||0;
-        epUAH = fixed * months;
-        epModeNoteEl.textContent = `ЄП = фіксована сума × ${months} міс.`;
-      }
+  // ЄП
+  let epUAH = 0;
+  if (epModeEl.value === 'percent') {
+    const ratePct = Number(epValueEl.value)||0;
+    epUAH = incomeUAH * ratePct / 100;
+    epModeNoteEl.textContent = `ЄП = ${ratePct}% від доходу`;
+  } else {
+    const fixed = Number(epValueEl.value)||0;
+    epUAH = fixed * months;
+    epModeNoteEl.textContent = `ЄП = фіксована сума × ${months} міс.`;
+  }
 
-      // Military tax
-      const militaryRate = Number(militaryTaxEl.value)||0;
-      const baseInput    = Number(militaryBaseEl.value);
-      const base         = Number.isFinite(baseInput) && baseInput>0 ? baseInput : incomeUAH;
-      const militaryUAH  = base * militaryRate / 100;
-      if(militaryRate > 0){
-          const { text, title } = chipMoney(base, 'UAH'); // компактная сумма + тултип
-          vzNoteEl.textContent = `ВЗ = ${militaryRate}% від ${text}`;
-          vzNoteEl.title = title; // полный формат в подсказке
-        } else {
-          vzNoteEl.textContent = '—';
-          vzNoteEl.removeAttribute('title');
-        }
+  // ВЗ
+  const militaryRate = Number(militaryTaxEl.value)||0;
+  const baseInput    = Number(militaryBaseEl.value);
+  const base         = Number.isFinite(baseInput) && baseInput>0 ? baseInput : incomeUAH;
+  const militaryUAH  = base * militaryRate / 100;
+  if (militaryRate > 0) {
+    const { text, title } = chipMoney(base, 'UAH');
+    vzNoteEl.textContent = `ВЗ = ${militaryRate}% від ${text}`;
+    vzNoteEl.title = title;
+  } else {
+    vzNoteEl.textContent = '—';
+    vzNoteEl.removeAttribute('title');
+  }
 
+  // ЄСВ (ОДИН раз)
+  const esvPerMonth = getEsvPerMonthFromMinWage();
+  const esvUAH      = esvPerMonth * months;
+  const minWageVal  = Number(minWageUAHEl?.value) || 0;
+  esvNoteEl.textContent = `ЄСВ = 22% × ${fmtUAH(minWageVal)} = ${fmtUAH(esvPerMonth)} × ${months} міс.`;
 
-      // ESV
-      const esvPerMonth = Number(esvPerMonthEl.value)||0;
-      const esvUAH = esvPerMonth * months;
-      esvNoteEl.textContent = `ЄСВ = ${fmtUAH(esvPerMonth)} × ${months} міс.`;
+  // Інше
+  const otherFromPercent = incomeUAH * otherPercent / 100;
+  const otherUAH         = otherFromPercent + otherFixed + feesUAH;
+  const otherParts = [];
+  if (otherPercent>0) otherParts.push(`${otherPercent}% від доходу`);
+  if (otherFixed>0)   otherParts.push(`фіксовано ${fmtUAH(otherFixed)}`);
+  if (feesUAH>0)      otherParts.push(`комісії ${fmtUAH(feesUAH)}`);
+  otherNoteEl.textContent = otherParts.length ? otherParts.join(' + ') : '—';
 
-      // Other
-      const otherFromPercent = incomeUAH * otherPercent / 100;
-      const otherUAH = otherFromPercent + otherFixed + feesUAH;
-      const otherParts=[];
-      if(otherPercent>0) otherParts.push(`${otherPercent}% від доходу`);
-      if(otherFixed>0)   otherParts.push(`фіксовано ${fmtUAH(otherFixed)}`);
-      if(feesUAH>0)      otherParts.push(`комісії ${fmtUAH(feesUAH)}`);
-      otherNoteEl.textContent = otherParts.length ? otherParts.join(' + ') : '—';
+  const totalUAH = epUAH + esvUAH + otherUAH + militaryUAH;
+  const usdRate  = fx.today?.rate || null;
+  const totalUSD = usdRate ? (totalUAH / usdRate) : null;
 
-      const totalUAH = epUAH + esvUAH + otherUAH + militaryUAH;
-      const usdRate  = fx.today?.rate || null;
-      const totalUSD = usdRate ? (totalUAH / usdRate) : null;
+  return { incomeUAH, epUAH, esvUAH, otherUAH, militaryUAH, totalUAH, totalUSD, usdRate };
+}
 
-      return { incomeUAH, epUAH, esvUAH, otherUAH, militaryUAH, totalUAH, totalUSD, usdRate };
-    }
 
     function recalc(){
       const r = calc();
@@ -370,7 +379,7 @@
     // === Events ===
     [
       groupEl, periodEl, incomeUAHEl, incomeCurrencyEl, epModeEl, epValueEl,
-      esvPerMonthEl, monthsCountEl, otherPercentEl, otherFixedEl, feesUAHEl,
+      minWageUAHEl, monthsCountEl, otherPercentEl, otherFixedEl, feesUAHEl,
       militaryTaxEl, militaryBaseEl
     ].forEach(el => el.addEventListener('input', recalc));
 
@@ -382,7 +391,7 @@
       incomeCurrencyEl.value='UAH';
       epModeEl.value='percent';
       epValueEl.value=5;
-      esvPerMonthEl.value=1870.38;
+      minWageUAHEl.value = 8000;
       monthsCountEl.value=1;
       otherPercentEl.value=0;
       otherFixedEl.value=0;
