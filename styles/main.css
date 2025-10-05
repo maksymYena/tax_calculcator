@@ -1,0 +1,148 @@
+
+        :root{ --bg:#0f1115; --panel:#171a21; --muted:#8a93a6; --text:#eef1f7;
+          --accent:#6ea8fe; --ok:#52d273; --warn:#ffb020; --bad:#ff6b6b; --line:#232635; --chip:#1f2330; }
+        *{box-sizing:border-box}
+        body{ margin:0; font:16px/1.5 system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Arial;
+          color:var(--text); background:linear-gradient(180deg,#0c0f14,#0f1115 30%,#0f1115); padding:24px; }
+        h1{margin:0 0 12px;font-size:24px}
+        .app{max-width:1100px;margin:0 auto;display:grid;gap:16px;grid-template-columns:1.2fr 1fr}
+        @media (max-width:980px){.app{grid-template-columns:1fr}}
+        .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px 16px 10px;box-shadow:0 8px 24px rgba(0,0,0,.25)}
+        .row{display:grid;gap:12px;grid-template-columns:1fr 1fr}
+        .row-3{display:grid;gap:12px;grid-template-columns:1fr 1fr 1fr}
+        .row-4{display:grid;gap:12px;grid-template-columns:1fr 1fr 1fr 1fr}
+        @media (max-width:760px){.row,.row-3,.row-4{grid-template-columns:1fr}}
+        label{display:block;font-size:12px;color:var(--muted);margin-bottom:6px}
+        input,select{width:100%;padding:12px;border-radius:10px;border:1px solid var(--line);background:#0e1118;color:var(--text);outline:none}
+        input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(110,168,254,.15)}
+        .chip{display:inline-flex;align-items:center;gap:8px;padding:6px 10px;border-radius:999px;background:var(--chip);color:var(--text);border:1px solid var(--line);font-size:13px}
+        .chips{display:flex;flex-wrap:wrap;gap:8px}
+        .rate-up{color:var(--ok)} .rate-down{color:var(--bad)} .muted{color:var(--muted)}
+        .total{display:grid;gap:12px;grid-template-columns:1fr 1fr;align-items:stretch}
+        @media (max-width:760px){.total{grid-template-columns:1fr}}
+        .kpi{background:#0e1118;border:1px solid var(--line);border-radius:14px;padding:14px;display:flex;flex-direction:column;gap:6px;justify-content:center}
+        .kpi .v{font-size:28px;font-weight:700}
+        .kpi small{
+          color: var(--muted);
+          display: block;
+          max-width: 100%;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+        .hr{height:1px;background:var(--line);margin:12px 0}
+        .hint{font-size:12px;color:var(--muted)}
+        .grid{display:grid;gap:12px}
+        .section-title{font-weight:700;margin-bottom:2px}
+        .footer-note{font-size:12px;color:var(--muted);margin-top:8px}
+        .btn{display:inline-flex;align-items:center;gap:8px;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:#10131b;color:var(--text);cursor:pointer;user-select:none}
+        .btn:active{transform:translateY(1px)}
+        .btn[disabled], select[disabled]{opacity:.5;cursor:not-allowed;filter:grayscale(.2)}
+        .right{display:flex;gap:10px;justify-content:flex-end}
+
+        /* monthly UI */
+        .months-header{display:flex;align-items:center;gap:10px;justify-content:space-between;flex-wrap:wrap}
+        .switch{display:inline-flex;align-items:center;gap:8px;font-size:13px;color:var(--text);cursor:pointer}
+        .switch input{appearance:none;width:40px;height:22px;border-radius:999px;background:#0e1118;border:1px solid var(--line);position:relative;outline:none}
+        .switch input:after{content:"";position:absolute;top:2px;left:2px;width:18px;height:18px;background:#2a2f3d;border-radius:50%;transition:transform .2s}
+        .switch input:checked{border-color:var(--accent)}
+        .switch input:checked:after{transform:translateX(18px);background:var(--accent)}
+        .months-list{display:flex;flex-direction:column;gap:8px;margin-top:10px}
+        .salary-item{display:grid;grid-template-columns:1fr auto auto;gap:8px;align-items:center}
+        .salary-item .idx{font-size:12px;color:var(--muted)}
+        .icon-btn{background:#0e1118;border:1px solid var(--line);border-radius:10px;padding:10px;cursor:pointer}
+        .icon-btn:active{transform:translateY(1px)}
+        .delete-btn{border-color:#3a1e22;background:#151014;color:#ff8b8b}
+        .delete-btn:hover{border-color:#ff6b6b;color:#ffd1d1}
+        .months-toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+        .sum-chip{margin-top:4px}
+        .sum-chip .chip{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+        .hide{display:none}
+
+        /* number spinners off */
+        input[type=number]::-webkit-inner-spin-button,
+        input[type=number]::-webkit-outer-spin-button{ -webkit-appearance:none;margin:0 }
+        input[type=number]{ -moz-appearance:textfield }
+
+        /* KPI long values */
+        .kpi .v{display:block;width:100%;font-size:clamp(18px,3vw,28px);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+        .kpi .v.shrink{font-size:clamp(16px,2.4vw,22px)}
+
+        .donate-note {
+          font-size: 12px;
+          color: var(--muted);
+          margin-top: 14px;
+          text-align: center;
+        }
+        .donate-note a {
+          color: var(--accent);
+          text-decoration: none;
+        }
+        .donate-note a:hover {
+          text-decoration: underline;
+        }
+
+        .total {
+          display: grid;
+          gap: 12px;
+          grid-template-columns: 250px 250px; /* фикс ширина */
+          justify-content: center;           /* выравниваем по центру */
+        }
+
+        .row-3 {
+          display: grid;
+          gap: 12px;
+          grid-template-columns: 1fr 1fr 1fr;
+        }
+
+        .kpi .v {
+          font-size: 24px;
+          font-weight: 700;
+          text-align: center;
+          min-width: 0; /* не растягивает ячейку */
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+
+        .kpi {
+            min-width: 200px;  /* минимальная ширина */
+            flex: 1;
+         }
+
+        .kpi .v {
+          font-variant-numeric: tabular-nums; /* одинаковая ширина цифр */
+        }
+
+        .form-inline{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+        .form-inline .control{
+          height:44px;                /* одинаковая высота */
+          display:inline-flex;
+          align-items:center;
+          padding:0 14px;             /* горизонтальные отступы */
+          border-radius:10px;
+          border:1px solid var(--line);
+          background:#10131b;
+          color:var(--text);
+        }
+        /* селект — тот же визуальный размер, но с нативной стрелкой */
+        .form-inline select.control{
+          padding-right:36px;         /* запас под стрелку */
+          background:#0e1118;
+        }
+        /* кнопки выглядят как раньше, но ровно по высоте */
+        .form-inline .btn.control{
+          background:#10131b;
+        }
+        /* у подписи к селекту убираем лишний нижний отступ, чтобы не «подпрыгивало» */
+        .form-inline .lbl{font-size:12px;color:var(--muted);margin:0}
+
+        /* чуть выровняем сам переключатель по вертикали с подписью */
+        .switch{gap:10px}
+        .switch input{vertical-align:middle}
+
+        /* на узких экранах элементы складываются в столбик без «ломаний» */
+        @media (max-width:760px){
+          .form-inline{gap:8px}
+          .form-inline .control{width:100%}
+        }
